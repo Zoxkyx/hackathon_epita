@@ -1,0 +1,7 @@
+[
+  {"id": "eleve_rapide", "profile": "rapide", "misconceptions": ["pense qu'optimiser trop tôt est toujours mieux"]},
+  {"id": "eleve_difficulte", "profile": "en difficulté", "misconceptions": ["confond affectation (=) et égalité (==)"]},
+  {"id": "eleve_distrait", "profile": "distrait", "misconceptions": ["oublie les cas limites (listes vides, zéro)"]},
+  {"id": "eleve_moyen", "profile": "moyen", "misconceptions": ["pense qu'une boucle for ne peut pas décrémenter"]},
+  {"id": "eleve_anxieux", "profile": "anxieux", "misconceptions": ["évite de tester son code par peur de se tromper"]}
+]
