@@ -1,4 +1,5 @@
 import html
+import json
 import os
 
 # Séries de données du graphique de rétention. Steps validés contre la surface
@@ -133,6 +134,48 @@ def _collect_call_budget(run_log: dict) -> dict:
         "sequential_depth": sequential_depth,
         "saved": total - sequential_depth,
     }
+
+
+def _load_personas() -> list:
+    """Personas réelles du projet. Chemin résolu depuis le module, pas depuis le
+    répertoire courant, pour que le rapport se génère d'où qu'on l'appelle."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "personas", "default.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def _first_exercise(run_log: dict):
+    for session in run_log["sessions"]:
+        for it in session["iterations"]:
+            for exercise in it["content"].get("exercises", []):
+                if {"question", "expected_answer", "concept"} <= exercise.keys():
+                    return exercise
+    return None
+
+
+def _first_memory_delta(run_log: dict):
+    """Premier changement réel de mémoire observé entre deux séances consécutives."""
+    sessions = run_log["sessions"]
+    for i in range(1, len(sessions)):
+        before_all = sessions[i - 1].get("memory_snapshot", {})
+        after_all = sessions[i].get("memory_snapshot", {})
+        for sid, after in after_all.items():
+            before = before_all.get(sid)
+            if not before:
+                continue
+            gained = [c for c in after["mastered_concepts"] if c not in before["mastered_concepts"]]
+            lost = [c for c in after["forgotten_concepts"] if c not in before["forgotten_concepts"]]
+            if gained or lost:
+                return {
+                    "student_id": sid, "profile": after.get("profile", ""),
+                    "from_session": i, "to_session": i + 1,
+                    "before": before, "after": after, "gained": gained, "lost": lost,
+                }
+    return None
 
 
 def _graticule(width: int, height: int, step: int = 40) -> str:
@@ -335,7 +378,7 @@ def _svg_session_timeline(run_log: dict) -> str:
     students = len(sessions[0].get("memory_snapshot", {})) if sessions else 5
     max_iter = max((len(s["iterations"]) for s in sessions), default=2)
 
-    w, h = 900, 470
+    w, h = 900, 540
     lanes = [
         ("Generator", 36, 132),
         ("Élèves-agents", 196, 168),
@@ -344,6 +387,7 @@ def _svg_session_timeline(run_log: dict) -> str:
         ("Reviser", 762, 102),
     ]
     lane_x = {name: (x, width) for name, x, width in lanes}
+    PREAMBLE = 68
 
     def centre(name):
         x, width = lane_x[name]
@@ -353,9 +397,19 @@ def _svg_session_timeline(run_log: dict) -> str:
              f'aria-label="Déroulé temporel d\'une séance, itération par itération">']
     parts.append(_graticule(w, h))
 
+    # préambule au niveau du run : le Planner tourne une fois, et l'enseignant
+    # valide son plan avant qu'aucun contenu ne soit écrit (main.py::confirm_session_plan)
+    parts.append('<rect x="36" y="14" width="200" height="34" rx="3" class="step" />')
+    parts.append('<text x="136" y="36" class="step-label" text-anchor="middle">Planner, 1 appel</text>')
+    parts.append('<rect x="290" y="14" width="240" height="34" rx="3" class="step step--human" />')
+    parts.append('<text x="410" y="36" class="step-label" text-anchor="middle">l\'enseignant valide le plan</text>')
+    parts.append('<line x1="236" y1="31" x2="290" y2="31" class="wire wire--flow" marker-end="url(#tip-flow)" />')
+    parts.append('<line x1="530" y1="31" x2="590" y2="31" class="wire wire--flow" marker-end="url(#tip-flow)" />')
+    parts.append('<text x="600" y="35" class="step-note">puis, pour chaque séance :</text>')
+
     for name, x, width in lanes:
-        parts.append(f'<text x="{x + width / 2}" y="24" class="lane-head" text-anchor="middle">{name}</text>')
-        parts.append(f'<line x1="{x + width / 2}" y1="34" x2="{x + width / 2}" y2="{h - 96}" class="lane-line" />')
+        parts.append(f'<text x="{x + width / 2}" y="{24 + PREAMBLE}" class="lane-head" text-anchor="middle">{name}</text>')
+        parts.append(f'<line x1="{x + width / 2}" y1="{34 + PREAMBLE}" x2="{x + width / 2}" y2="{h - 96}" class="lane-line" />')
 
     def step(name, y, label, kind="llm"):
         x, width = lane_x[name]
@@ -369,7 +423,7 @@ def _svg_session_timeline(run_log: dict) -> str:
         dash = ' stroke-dasharray="3 5"' if dashed else ""
         parts.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" class="{cls}"{dash} marker-end="url(#{tip})" />')
 
-    for index, top in enumerate((62, 232)):
+    for index, top in enumerate((62 + PREAMBLE, 232 + PREAMBLE)):
         last = index == 1
         parts.append(f'<text x="36" y="{top - 22}" class="iter-tag">ITÉR. {index}</text>')
         parts.append(f'<line x1="0" y1="{top - 14}" x2="{w}" y2="{top - 14}" class="axis-rule" />')
@@ -539,6 +593,146 @@ def _render_call_budget(run_log: dict) -> str:
       <ul class="budget-list">{bars}</ul>
       <p class="budget-note">Le DriftWatcher est à zéro appel : c'est le seul agent entièrement déterministe,
          et il valide pourtant chaque réaction d'élève.</p>
+    </div>"""
+
+
+def _render_student_anatomy(run_log: dict) -> str:
+    """Ce qu'un élève-agent est (sa persona réelle) et ce qu'on lui cache
+    délibérément (la réponse attendue), source : data/personas + src/agents/student.py."""
+    personas = _load_personas()
+    exercise = _first_exercise(run_log)
+    if not personas:
+        return '<p class="empty">Personas introuvables.</p>'
+
+    cards = ""
+    for persona in personas:
+        misconceptions = persona.get("misconceptions") or []
+        items = "".join(f"<li>{_esc(m)}</li>" for m in misconceptions) or "<li>aucune</li>"
+        cards += f"""
+        <li class="persona">
+          <span class="persona-id">{_esc(persona["id"])}</span>
+          <span class="persona-profile">{_esc(persona["profile"])}</span>
+          <ul class="persona-misc">{items}</ul>
+        </li>"""
+
+    exchange = ""
+    if exercise:
+        exchange = f"""
+      <div class="prompt-split">
+        <div class="prompt-side prompt-side--seen">
+          <span class="prompt-key">Ce que l'élève-agent reçoit</span>
+          <p class="prompt-line"><b>question</b> {_esc(exercise["question"])}</p>
+          <p class="prompt-line"><b>concept</b> {_esc(exercise["concept"])}</p>
+        </div>
+        <div class="prompt-side prompt-side--hidden">
+          <span class="prompt-key">Ce qui lui est retiré</span>
+          <p class="prompt-line prompt-line--redacted"><b>expected_answer</b> {_esc(exercise["expected_answer"])}</p>
+          <p class="prompt-note">Sans ce retrait, l'élève-agent recopierait la réponse et tous les taux de
+             réussite de ce rapport vaudraient 100 %.</p>
+        </div>
+      </div>"""
+
+    return f"""
+    <div class="panel panel--pad">
+      <p class="finding">Une persona ne porte pas une humeur, elle porte une <b>méprise nommée</b>. C'est elle qui
+         rend les erreurs reproductibles et les notes du Reviser actionnables.</p>
+      <ul class="persona-list">{cards}</ul>
+      {exchange}
+    </div>"""
+
+
+def _svg_memory_cycle() -> str:
+    w, h = 880, 200
+    parts = [f'<svg viewBox="0 0 {w} {h}" class="chart chart--attached" role="img" '
+             f'aria-label="Cycle de la mémoire d\'un élève-agent">']
+    parts.append(_graticule(w, h))
+    parts.append(
+        '<defs><marker id="tip-mem" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">'
+        '<path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--vapor)" /></marker>'
+        '<marker id="tip-mem-plaus" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">'
+        '<path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--ch-plaus)" /></marker></defs>'
+    )
+
+    boxes = [
+        (30, "Mémoire, séance N", "état d'entrée", "step"),
+        (250, "L'élève décide", "il choisit ce qu'il oublie", "step step--commit"),
+        (490, "DriftWatcher", "3 règles, 0 LLM", "step step--rule"),
+        (710, "Mémoire, séance N+1", "état validé", "step"),
+    ]
+    for x, title, note, cls in boxes:
+        width = 140 if x != 250 else 200
+        parts.append(f'<rect x="{x}" y="52" width="{width}" height="58" rx="4" class="{cls}" />')
+        parts.append(f'<text x="{x + width / 2}" y="78" class="node-name" text-anchor="middle">{title}</text>')
+        parts.append(f'<text x="{x + width / 2}" y="96" class="node-meta" text-anchor="middle">{note}</text>')
+
+    parts.append('<line x1="170" y1="81" x2="250" y2="81" class="wire wire--flow" marker-end="url(#tip-mem)" />')
+    parts.append('<line x1="450" y1="81" x2="490" y2="81" class="wire wire--plaus" marker-end="url(#tip-mem-plaus)" />')
+    parts.append('<line x1="630" y1="81" x2="710" y2="81" class="wire wire--plaus" marker-end="url(#tip-mem-plaus)" />')
+
+    parts.append('<path d="M560,110 L560,150 L340,150 L340,110" class="wire wire--plaus" fill="none" '
+                  'marker-end="url(#tip-mem-plaus)" />')
+    parts.append('<text x="450" y="167" class="step-note" text-anchor="middle">'
+                  'si la mutation est invraisemblable : rejeu une fois, puis correction</text>')
+
+    parts.append('<text x="30" y="34" class="step-note">L\'oubli n\'est calculé par aucune formule : '
+                  'il est produit par l\'élève-agent, puis contrôlé.</text>')
+    parts.append("</svg>")
+    return f'<div class="panel">{"".join(parts)}</div>'
+
+
+def _render_memory_cycle(run_log: dict) -> str:
+    delta = _first_memory_delta(run_log)
+    evidence = ""
+    if delta:
+        gained = ", ".join(delta["gained"]) or "rien"
+        lost = ", ".join(delta["lost"]) or "rien"
+        evidence = f"""
+      <div class="panel panel--pad delta">
+        <p class="finding">Exemple relevé dans ce run : <b>{_esc(delta["student_id"])}</b>
+           entre la séance {delta["from_session"]} et la séance {delta["to_session"]}.</p>
+        <div class="delta-grid">
+          <div class="delta-col">
+            <span class="prompt-key">Avant</span>
+            <p class="prompt-line"><b>maîtrisé</b> {_esc(", ".join(delta["before"]["mastered_concepts"]) or "rien")}</p>
+            <p class="prompt-line"><b>oublié</b> {_esc(", ".join(delta["before"]["forgotten_concepts"]) or "rien")}</p>
+          </div>
+          <div class="delta-col delta-col--after">
+            <span class="prompt-key">Après</span>
+            <p class="prompt-line"><b>maîtrisé</b> {_esc(", ".join(delta["after"]["mastered_concepts"]) or "rien")}</p>
+            <p class="prompt-line"><b>oublié</b> {_esc(", ".join(delta["after"]["forgotten_concepts"]) or "rien")}</p>
+          </div>
+          <div class="delta-col delta-col--diff">
+            <span class="prompt-key">Décidé par l'élève</span>
+            <p class="prompt-line"><b>acquis</b> {_esc(gained)}</p>
+            <p class="prompt-line"><b>perdu</b> {_esc(lost)}</p>
+          </div>
+        </div>
+      </div>"""
+    return _svg_memory_cycle() + evidence
+
+
+def _render_limits() -> str:
+    """Les limites doivent être capturables : dans un PDF fait de captures,
+    une limite reléguée au pied de page n'existe pas."""
+    return """
+    <div class="panel panel--pad limits">
+      <div class="limit">
+        <span class="limit-key">Ce que ce rapport ne prouve pas</span>
+        <p>Les élèves-agents sont des simulations produites par un LLM, pas de vrais apprenants. Le système
+           optimise donc son contenu contre la représentation que le modèle se fait d'un élève en difficulté,
+           pas contre une classe réelle.</p>
+      </div>
+      <div class="limit">
+        <span class="limit-key">Biais d'auto-évaluation</span>
+        <p>Le Generator et les élèves-agents partagent le même modèle. Celui qui écrit le contenu et ceux qui
+           le jugent sont la même intelligence, ce qui expose le système à des révisions complaisantes.</p>
+      </div>
+      <div class="limit">
+        <span class="limit-key">Protocole de validation proposé</span>
+        <p>Rejouer un sous-ensemble des séances générées avec de vrais élèves, comparer leur taux de réussite
+           réel par concept à celui prédit par le Diagnostician, et mesurer l'écart. Tant que cet écart n'est
+           pas mesuré, les courbes de ce rapport décrivent le comportement du simulateur, pas celui d'une classe.</p>
+      </div>
     </div>"""
 
 
@@ -784,6 +978,7 @@ def render_html_report(run_log: dict) -> str:
   .step--rule {{ fill: rgba(79, 214, 189, 0.08); stroke: var(--ch-plaus); stroke-dasharray: 4 3; }}
   .step--parallel {{ fill: var(--panel-lift); stroke: var(--vapor-dim); stroke-width: 1; }}
   .step--commit {{ fill: rgba(255, 106, 94, 0.06); stroke: var(--ch-content); }}
+  .step--human {{ fill: var(--panel); stroke: var(--filament); stroke-width: 1.5; }}
   .step-label {{ fill: var(--filament); font-family: var(--sans); font-size: 12px; font-weight: 500; }}
   .step-note {{ fill: var(--vapor-dim); font-family: var(--mono); font-size: 10px; }}
   .step-note--stop {{ fill: var(--ch-content); }}
@@ -871,6 +1066,36 @@ def render_html_report(run_log: dict) -> str:
   .budget-figure {{ font-family: var(--mono); font-size: 14px; font-weight: 700; text-align: right; }}
   .budget-note {{ margin: 18px 0 0; font-size: 12.5px; color: var(--vapor-dim); border-top: 1px solid var(--graticule); padding-top: 14px; }}
 
+  /* ---- anatomie d'un eleve-agent ---- */
+  .persona-list {{ list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }}
+  .persona {{ background: var(--panel-lift); padding: 12px 16px; display: grid; grid-template-columns: 150px 110px 1fr; align-items: center; gap: 16px; }}
+  .persona-id {{ font-family: var(--mono); font-size: 12px; color: var(--filament); }}
+  .persona-profile {{ font-family: var(--mono); font-size: 11px; color: var(--vapor-dim); }}
+  .persona-misc {{ margin: 0; padding-left: 16px; font-size: 13px; color: var(--vapor); }}
+
+  .prompt-split {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }}
+  .prompt-side {{ background: var(--panel-lift); padding: 16px 18px; }}
+  .prompt-side--hidden {{ background: rgba(255, 106, 94, 0.05); }}
+  .prompt-key {{ font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--vapor-dim); display: block; margin-bottom: 10px; }}
+  .prompt-side--hidden .prompt-key {{ color: var(--ch-content); }}
+  .prompt-line {{ margin: 0 0 6px; font-size: 13px; color: var(--filament); }}
+  .prompt-line b {{ font-family: var(--mono); font-size: 10.5px; color: var(--vapor-dim); font-weight: 500; margin-right: 8px; }}
+  .prompt-line--redacted {{ color: var(--vapor-dim); text-decoration: line-through; text-decoration-color: var(--ch-content); }}
+  .prompt-note {{ margin: 12px 0 0; font-size: 12.5px; color: var(--vapor); }}
+
+  /* ---- cycle de la memoire ---- */
+  .delta {{ margin-top: 14px; }}
+  .delta-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }}
+  .delta-col {{ background: var(--panel-lift); padding: 14px 16px; }}
+  .delta-col--after {{ background: var(--panel); }}
+  .delta-col--diff {{ background: rgba(79, 214, 189, 0.06); }}
+  .delta-col--diff .prompt-key {{ color: var(--ch-plaus); }}
+
+  /* ---- limites, en section capturable et non plus en pied de page ---- */
+  .limits {{ display: grid; gap: 20px; }}
+  .limit-key {{ font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ch-content); display: block; margin-bottom: 8px; }}
+  .limit p {{ margin: 0; color: var(--vapor); font-size: 14px; max-width: 78ch; }}
+
   td.gain {{ color: var(--ch-content); font-weight: 700; }}
   .cell-index {{ font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--vapor-dim); margin-right: 12px; }}
 
@@ -940,9 +1165,19 @@ def render_html_report(run_log: dict) -> str:
       <span class="chan chan--plaus">plausibilité</span>
     </div>
     <p class="lede">Le schéma précédent dit qui parle à qui. Celui-ci dit dans quel ordre, ce qui part en même
-       temps, et ce qui arrête la boucle. C'est ce déroulé qui explique pourquoi un run de 60 appels ne coûte
-       que 28 attentes successives.</p>
+       temps, et ce qui arrête la boucle. C'est ce déroulé qui explique pourquoi ce run de {_collect_call_budget(run_log)["total"]} appels
+       ne coûte que {_collect_call_budget(run_log)["sequential_depth"]} attentes successives.</p>
     {_svg_session_timeline(run_log)}
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Anatomie d'un élève-agent</h2>
+      <span class="chan chan--subject">sujet</span>
+    </div>
+    <p class="lede">Cinq élèves-agents, cinq méprises nommées. Et une précaution sans laquelle rien de ce
+       rapport ne vaudrait : l'énoncé leur parvient amputé de sa réponse.</p>
+    {_render_student_anatomy(run_log)}
   </section>
 
   <section>
@@ -963,6 +1198,16 @@ def render_html_report(run_log: dict) -> str:
     <p class="lede">La courbe ci-dessus se lit ; celle-ci se chiffre. Pour chaque concept retesté après son pic,
        voici ce que la classe en a perdu, et en combien de séances.</p>
     {_render_halflife(run_log)}
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Le cycle de la mémoire</h2>
+      <span class="chan chan--plaus">plausibilité</span>
+    </div>
+    <p class="lede">Le mécanisme qui fait tenir la thèse du projet : l'oubli n'est pas une courbe de
+       décroissance codée en dur, c'est une décision de l'élève-agent, qui passe ensuite un contrôle.</p>
+    {_render_memory_cycle(run_log)}
   </section>
 
   <section>
@@ -1024,15 +1269,18 @@ def render_html_report(run_log: dict) -> str:
     {_render_call_budget(run_log)}
   </section>
 
+  <section>
+    <div class="sec-head">
+      <h2>Limites assumées</h2>
+      <span class="chan chan--content">honnêteté</span>
+    </div>
+    <p class="lede">Ce que le système ne démontre pas, et ce qu'il faudrait faire pour le démontrer.</p>
+    {_render_limits()}
+  </section>
+
   <footer>
-    <p><b>Ce que ce rapport ne prouve pas.</b> Les élèves-agents sont des simulations produites par un LLM, pas de
-       vrais apprenants : le système optimise donc son contenu contre la représentation que le modèle se fait d'un
-       élève en difficulté. Le Generator partage ce modèle avec les élèves qui le jugent, ce qui expose le système à
-       des révisions complaisantes.</p>
-    <p><b>Protocole de validation proposé.</b> Rejouer un sous-ensemble des séances générées avec de vrais élèves,
-       comparer leur taux de réussite réel par concept à celui prédit par le Diagnostician, et mesurer l'écart. Tant
-       que cet écart n'est pas mesuré, les courbes ci-dessus décrivent le comportement du simulateur, pas celui d'une
-       classe.</p>
+    <p>Rapport généré depuis le journal du run <code>{_esc(run_log["run_id"])}</code>. Les limites du système et le
+       protocole de validation proposé sont détaillés dans la section « Limites assumées » ci-dessus.</p>
   </footer>
 
 </div>
