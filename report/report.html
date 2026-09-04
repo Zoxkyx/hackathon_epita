@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>La Classe Fantôme, rapport de run demo-2026-09-03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    color-scheme: dark;
+    --plate: #080d0c;
+    --panel: #0f1614;
+    --panel-lift: #141d1a;
+    --graticule: #16211e;
+    --rule: #223029;
+    --filament: #f0f4f1;
+    --vapor: #a9bab3;
+    --vapor-dim: #7d918a;
+    --ch-content: #ff6a5e;
+    --ch-plaus: #4fd6bd;
+    --mem-held: #eef4f0;
+    --mem-fragile: #93aca4;
+    --mem-lost: #5a7268;
+    --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--plate);
+    color: var(--filament);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 1000px; margin: 0 auto; padding: 72px 32px 96px; }
+
+  /* ---- en-tête : la thèse, pas le nom du projet ---- */
+  .mark {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--vapor-dim);
+    margin-bottom: 28px;
+  }
+  .thesis {
+    font-size: clamp(34px, 5.4vw, 58px);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    margin: 0 0 28px;
+    max-width: 22ch;
+  }
+  .thesis em { font-style: normal; color: var(--ch-content); }
+  .specimen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 36px;
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--vapor);
+  }
+  .specimen b { color: var(--vapor-dim); font-weight: 500; margin-right: 8px; }
+
+  /* ---- rail de mesures : deux signaux forts, deux contextes discrets ---- */
+  .rail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1.35fr)) repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 52px 0 64px;
+  }
+  .cell { background: var(--panel); padding: 22px 20px 20px; }
+  .cell-key {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--vapor-dim);
+    display: block;
+    margin-bottom: 14px;
+  }
+  .cell-value { font-family: var(--mono); font-weight: 700; font-size: 38px; line-height: 1; }
+  .cell-note { font-size: 12.5px; color: var(--vapor); margin-top: 10px; }
+  .cell--signal { background: var(--panel-lift); }
+  .cell--signal .cell-value { font-size: 50px; }
+  .cell--content .cell-value { color: var(--ch-content); }
+  .cell--plaus .cell-value { color: var(--ch-plaus); }
+  .cell--content { box-shadow: inset 3px 0 0 var(--ch-content); }
+  .cell--plaus { box-shadow: inset 3px 0 0 var(--ch-plaus); }
+  .cell--quiet .cell-value { color: var(--vapor); font-size: 30px; }
+
+  /* ---- sections ---- */
+  section { margin-bottom: 80px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 10px; }
+  h2 { font-size: 23px; font-weight: 600; letter-spacing: -0.015em; margin: 0; }
+  .chan {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .chan--content { color: var(--ch-content); }
+  .chan--plaus { color: var(--ch-plaus); }
+  .chan--subject { color: var(--vapor-dim); }
+  .lede { color: var(--vapor); max-width: 68ch; margin: 0 0 26px; }
+  .lede b { color: var(--filament); font-weight: 500; }
+
+  /* ---- panneaux d'instrument ---- */
+  .panel { background: var(--panel); border: 1px solid var(--rule); }
+  .panel--diagram { background: var(--panel); }
+  .chart { width: 100%; height: auto; display: block; }
+  .grat { stroke: var(--graticule); stroke-width: 1; }
+  .axis-rule { stroke: var(--rule); stroke-width: 1; }
+  .axis-tickline { stroke: var(--graticule); stroke-width: 1; }
+  .tick { fill: var(--vapor-dim); font-family: var(--mono); font-size: 11px; }
+  .tick--unit { fill: var(--vapor-dim); }
+  .subject-id { fill: var(--vapor); font-family: var(--mono); font-size: 12px; }
+  .trace { stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .node-dot { stroke: var(--panel); stroke-width: 2; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 14px 18px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11.5px; color: var(--vapor); }
+  .legend-item { display: inline-flex; align-items: center; gap: 8px; }
+  .legend-trace { width: 16px; height: 2px; display: inline-block; }
+  .legend-swatch { width: 11px; height: 11px; display: inline-block; }
+  .legend-swatch.mem--held { background: var(--mem-held); }
+  .legend-swatch.mem--fragile { background: var(--mem-fragile); }
+  .legend-swatch.mem--lost { background: var(--mem-lost); border: 1px solid var(--rule); }
+
+  .mem--held { fill: var(--mem-held); }
+  .mem--fragile { fill: var(--mem-fragile); }
+  .mem--lost { fill: var(--mem-lost); }
+
+  /* ---- diagramme : la grammaire de trait ---- */
+  .node--llm { fill: var(--panel-lift); stroke: var(--rule); stroke-width: 1.5; }
+  .node--rule { fill: rgba(79, 214, 189, 0.07); stroke: var(--ch-plaus); stroke-width: 1.5; stroke-dasharray: 5 3; }
+  .node-name { fill: var(--filament); font-family: var(--sans); font-size: 14.5px; font-weight: 600; }
+  .node-meta { fill: var(--vapor-dim); font-family: var(--mono); font-size: 10.5px; }
+  .wire { stroke-width: 2; fill: none; }
+  .wire--flow { stroke: var(--vapor-dim); }
+  .wire--content { stroke: var(--ch-content); }
+  .wire--plaus { stroke: var(--ch-plaus); stroke-dasharray: 6 4; stroke-linecap: round; }
+  .wire--return { stroke-dasharray: 3 5; }
+  .wire-label { font-family: var(--mono); font-size: 10.5px; }
+  .wire-label--content { fill: var(--ch-content); }
+  .wire-label--plaus { fill: var(--ch-plaus); }
+  .label-backing { fill: var(--panel); }
+
+  /* ---- chronogramme : le temps, pas la topologie ---- */
+  .lane-head { fill: var(--vapor); font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .lane-line { stroke: var(--graticule); stroke-width: 1; }
+  .iter-tag { fill: var(--vapor-dim); font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; }
+  .step { fill: var(--panel-lift); stroke: var(--rule); stroke-width: 1; }
+  .step--rule { fill: rgba(79, 214, 189, 0.08); stroke: var(--ch-plaus); stroke-dasharray: 4 3; }
+  .step--parallel { fill: var(--panel-lift); stroke: var(--vapor-dim); stroke-width: 1; }
+  .step--commit { fill: rgba(255, 106, 94, 0.06); stroke: var(--ch-content); }
+  .step--human { fill: var(--panel); stroke: var(--filament); stroke-width: 1.5; }
+  .step-label { fill: var(--filament); font-family: var(--sans); font-size: 12px; font-weight: 500; }
+  .step-note { fill: var(--vapor-dim); font-family: var(--mono); font-size: 10px; }
+  .step-note--stop { fill: var(--ch-content); }
+
+  /* Le signal de plausibilité circule en continu vers le DriftWatcher : les tirets
+     défilent le long du trait. Seul le canal pointillé bouge, le canal plein reste fixe. */
+  @media (prefers-reduced-motion: no-preference) {
+    .diagram .wire--plaus { animation: drift 1.6s linear infinite; }
+    @keyframes drift {
+      from { stroke-dashoffset: 20; }
+      to { stroke-dashoffset: 0; }
+    }
+  }
+
+  /* ---- révisions ---- */
+  .revision { border: 1px solid var(--rule); border-left: 3px solid var(--ch-content); background: var(--panel); padding: 22px 24px; margin-bottom: 14px; }
+  .revision-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+  .revision-index { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--vapor-dim); }
+  .revision h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .revision-note { font-size: 13.5px; color: var(--vapor); margin: 0 0 18px; }
+  .note-key { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ch-content); display: block; margin-bottom: 4px; }
+  .revision-body { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); }
+  .draft { background: var(--panel-lift); padding: 16px; position: relative; }
+  .draft p { margin: 0; font-size: 13.5px; }
+  .draft--before p { color: var(--vapor); }
+  .draft-key { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--vapor-dim); display: block; margin-bottom: 8px; }
+  .draft--after .draft-key { color: var(--ch-content); }
+
+  /* ---- table de règles ---- */
+  table.rules { width: 100%; border-collapse: collapse; }
+  table.rules th, table.rules td { text-align: left; padding: 14px 18px; font-size: 13.5px; }
+  table.rules th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--vapor-dim); font-weight: 500; border-bottom: 1px solid var(--rule); }
+  table.rules tbody tr + tr td { border-top: 1px solid var(--graticule); }
+  .rule-cell { box-shadow: inset 3px 0 0 var(--ch-plaus); }
+  td.mono, th.count { font-family: var(--mono); }
+  td.count { color: var(--ch-plaus); font-weight: 700; }
+  .count { text-align: right; }
+
+  .alert { border: 1px solid var(--ch-plaus); border-left-width: 3px; background: rgba(79, 214, 189, 0.05); padding: 16px 20px; margin-top: 16px; }
+  .alert-key { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ch-plaus); display: block; margin-bottom: 8px; }
+  .alert ul { margin: 0; padding-left: 18px; color: var(--vapor); font-size: 13.5px; }
+
+  .empty { color: var(--vapor-dim); font-family: var(--mono); font-size: 12.5px; padding: 18px; }
+
+  /* ---- constats mesurés : demi-vie, divergence, gain, budget ---- */
+  .panel--pad { padding: 22px 24px; }
+  .finding { margin: 0 0 20px; font-size: 15px; color: var(--vapor); max-width: 74ch; }
+  .finding b { color: var(--filament); font-weight: 600; }
+  .finding--inset { padding: 20px 20px 0; }
+
+  .decay-list, .subject-list, .budget-list { list-style: none; margin: 0; padding: 0; }
+  .decay, .subject {
+    display: grid;
+    grid-template-columns: 168px 1fr 74px;
+    align-items: center;
+    gap: 0 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--graticule);
+  }
+  .decay-name, .subject-name { font-family: var(--mono); font-size: 12.5px; color: var(--filament); }
+  .decay-track, .subject-track, .budget-track { height: 8px; background: var(--panel-lift); position: relative; }
+  .decay-fill { display: block; height: 100%; background: var(--ch-content); }
+  .subject-fill { display: block; height: 100%; background: var(--mem-fragile); }
+  .budget-fill { display: block; height: 100%; background: var(--ch-plaus); }
+  .decay-figure, .subject-figure { font-family: var(--mono); font-size: 15px; font-weight: 700; text-align: right; }
+  .decay-figure { color: var(--ch-content); }
+  .subject-figure { color: var(--filament); }
+  .decay-detail, .subject-detail {
+    grid-column: 2 / -1;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--vapor-dim);
+    margin-top: 6px;
+  }
+
+  .budget-row {
+    display: grid;
+    grid-template-columns: 168px 1fr 48px;
+    align-items: center;
+    gap: 0 16px;
+    padding: 9px 0;
+  }
+  .budget-row--zero .budget-figure { color: var(--ch-plaus); }
+  .budget-name { font-family: var(--mono); font-size: 12.5px; color: var(--filament); }
+  .budget-figure { font-family: var(--mono); font-size: 14px; font-weight: 700; text-align: right; }
+  .budget-note { margin: 18px 0 0; font-size: 12.5px; color: var(--vapor-dim); border-top: 1px solid var(--graticule); padding-top: 14px; }
+
+  /* ---- anatomie d'un eleve-agent ---- */
+  .persona-list { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .persona { background: var(--panel-lift); padding: 12px 16px; display: grid; grid-template-columns: 150px 110px 1fr; align-items: center; gap: 16px; }
+  .persona-id { font-family: var(--mono); font-size: 12px; color: var(--filament); }
+  .persona-profile { font-family: var(--mono); font-size: 11px; color: var(--vapor-dim); }
+  .persona-misc { margin: 0; padding-left: 16px; font-size: 13px; color: var(--vapor); }
+
+  .prompt-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .prompt-side { background: var(--panel-lift); padding: 16px 18px; }
+  .prompt-side--hidden { background: rgba(255, 106, 94, 0.05); }
+  .prompt-key { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--vapor-dim); display: block; margin-bottom: 10px; }
+  .prompt-side--hidden .prompt-key { color: var(--ch-content); }
+  .prompt-line { margin: 0 0 6px; font-size: 13px; color: var(--filament); }
+  .prompt-line b { font-family: var(--mono); font-size: 10.5px; color: var(--vapor-dim); font-weight: 500; margin-right: 8px; }
+  .prompt-line--redacted { color: var(--vapor-dim); text-decoration: line-through; text-decoration-color: var(--ch-content); }
+  .prompt-note { margin: 12px 0 0; font-size: 12.5px; color: var(--vapor); }
+
+  /* ---- cycle de la memoire ---- */
+  .delta { margin-top: 14px; }
+  .delta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .delta-col { background: var(--panel-lift); padding: 14px 16px; }
+  .delta-col--after { background: var(--panel); }
+  .delta-col--diff { background: rgba(79, 214, 189, 0.06); }
+  .delta-col--diff .prompt-key { color: var(--ch-plaus); }
+
+  /* ---- limites, en section capturable et non plus en pied de page ---- */
+  .limits { display: grid; gap: 20px; }
+  .limit-key { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ch-content); display: block; margin-bottom: 8px; }
+  .limit p { margin: 0; color: var(--vapor); font-size: 14px; max-width: 78ch; }
+
+  td.gain { color: var(--ch-content); font-weight: 700; }
+  .cell-index { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--vapor-dim); margin-right: 12px; }
+
+  @media (max-width: 760px) {
+    .decay, .subject, .budget-row { grid-template-columns: 1fr 56px; }
+    .decay-track, .subject-track, .budget-track { display: none; }
+  }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 22px; color: var(--vapor); font-size: 13px; max-width: 74ch; }
+  footer p { margin: 0 0 12px; }
+  footer b { color: var(--filament); font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .sheet { padding: 44px 18px 64px; }
+    .rail { grid-template-columns: 1fr 1fr; }
+    .revision-body { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <p class="mark">La Classe Fantôme</p>
+  <h1 class="thesis">Ce contenu n'est pas noté sur ce qu'il enseigne. Il est noté sur ce qu'il en <em>reste</em>.</h1>
+  <div class="specimen">
+    <span><b>run</b>demo-2026-09-03</span>
+    <span><b>objectif</b>faire comprendre les boucles for/while à des débutants en programmation, niveau lycée</span>
+  </div>
+
+  <div class="rail">
+    <div class="cell cell--signal cell--content">
+      <span class="cell-key">Signal qualité</span>
+      <div class="cell-value">3</div>
+      <p class="cell-note">cycles de révision du contenu déclenchés par le Diagnostician</p>
+    </div>
+    <div class="cell cell--signal cell--plaus">
+      <span class="cell-key">Signal plausibilité</span>
+      <div class="cell-value">1</div>
+      <p class="cell-note">réactions d'élèves corrigées par le DriftWatcher, sans toucher au contenu</p>
+    </div>
+    <div class="cell cell--quiet">
+      <span class="cell-key">Séances</span>
+      <div class="cell-value">5</div>
+    </div>
+    <div class="cell cell--quiet">
+      <span class="cell-key">Concepts suivis</span>
+      <div class="cell-value">5</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Architecture agentique</h2>
+      <span class="chan chan--content">qualité</span>
+      <span class="chan chan--plaus">plausibilité</span>
+    </div>
+    <p class="lede">Deux canaux qui ne se mélangent jamais. Le Diagnostician mesure la qualité du contenu et peut
+       déclencher une réécriture. Le DriftWatcher mesure la plausibilité de la simulation : il rejoue ou corrige la
+       réaction d'un élève, mais <b>ne touche jamais au contenu</b>. C'est le seul agent sans appel LLM, et sa forme le dit.</p>
+    <div class="panel panel--diagram"><svg viewBox="0 0 900 430" class="chart chart--attached diagram" role="img" aria-label="Architecture agentique : Planner, Generator, Élèves-agents, DriftWatcher, Diagnostician, Reviser"><g class="graticule"><line x1="40" y1="0" x2="40" y2="430" class="grat" /><line x1="80" y1="0" x2="80" y2="430" class="grat" /><line x1="120" y1="0" x2="120" y2="430" class="grat" /><line x1="160" y1="0" x2="160" y2="430" class="grat" /><line x1="200" y1="0" x2="200" y2="430" class="grat" /><line x1="240" y1="0" x2="240" y2="430" class="grat" /><line x1="280" y1="0" x2="280" y2="430" class="grat" /><line x1="320" y1="0" x2="320" y2="430" class="grat" /><line x1="360" y1="0" x2="360" y2="430" class="grat" /><line x1="400" y1="0" x2="400" y2="430" class="grat" /><line x1="440" y1="0" x2="440" y2="430" class="grat" /><line x1="480" y1="0" x2="480" y2="430" class="grat" /><line x1="520" y1="0" x2="520" y2="430" class="grat" /><line x1="560" y1="0" x2="560" y2="430" class="grat" /><line x1="600" y1="0" x2="600" y2="430" class="grat" /><line x1="640" y1="0" x2="640" y2="430" class="grat" /><line x1="680" y1="0" x2="680" y2="430" class="grat" /><line x1="720" y1="0" x2="720" y2="430" class="grat" /><line x1="760" y1="0" x2="760" y2="430" class="grat" /><line x1="800" y1="0" x2="800" y2="430" class="grat" /><line x1="840" y1="0" x2="840" y2="430" class="grat" /><line x1="880" y1="0" x2="880" y2="430" class="grat" /><line x1="0" y1="40" x2="900" y2="40" class="grat" /><line x1="0" y1="80" x2="900" y2="80" class="grat" /><line x1="0" y1="120" x2="900" y2="120" class="grat" /><line x1="0" y1="160" x2="900" y2="160" class="grat" /><line x1="0" y1="200" x2="900" y2="200" class="grat" /><line x1="0" y1="240" x2="900" y2="240" class="grat" /><line x1="0" y1="280" x2="900" y2="280" class="grat" /><line x1="0" y1="320" x2="900" y2="320" class="grat" /><line x1="0" y1="360" x2="900" y2="360" class="grat" /><line x1="0" y1="400" x2="900" y2="400" class="grat" /></g><defs><marker id="tip-content" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--ch-content)" /></marker><marker id="tip-plaus" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--ch-plaus)" /></marker><marker id="tip-flow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--vapor)" /></marker></defs><rect x="40" y="62" width="168" height="66" rx="4" class="node node--llm" /><text x="124.0" y="90" class="node-name" text-anchor="middle">Planner</text><text x="124.0" y="109" class="node-meta" text-anchor="middle">1 appel LLM / run</text><rect x="268" y="62" width="168" height="66" rx="4" class="node node--llm" /><text x="352.0" y="90" class="node-name" text-anchor="middle">Generator</text><text x="352.0" y="109" class="node-meta" text-anchor="middle">1 appel / itération</text><rect x="496" y="62" width="168" height="66" rx="4" class="node node--llm" /><text x="580.0" y="90" class="node-name" text-anchor="middle">Élèves-agents</text><text x="580.0" y="109" class="node-meta" text-anchor="middle">5 appels parallèles</text><polygon points="736,62 892,62 892,116 880,128 724,128 724,74" class="node node--rule" /><text x="808.0" y="90" class="node-name" text-anchor="middle">DriftWatcher</text><text x="808.0" y="109" class="node-meta" text-anchor="middle">0 LLM, déterministe</text><rect x="180" y="258" width="168" height="66" rx="4" class="node node--llm" /><text x="264.0" y="286" class="node-name" text-anchor="middle">Reviser</text><text x="264.0" y="305" class="node-meta" text-anchor="middle">1 appel si révision</text><rect x="496" y="258" width="168" height="66" rx="4" class="node node--llm" /><text x="580.0" y="286" class="node-name" text-anchor="middle">Diagnostician</text><text x="580.0" y="305" class="node-meta" text-anchor="middle">1 appel / itération</text><line x1="208" y1="95.0" x2="268" y2="95.0" class="wire wire--flow" marker-end="url(#tip-flow)" /><line x1="436" y1="95.0" x2="496" y2="95.0" class="wire wire--flow" marker-end="url(#tip-flow)" /><line x1="664" y1="95.0" x2="724" y2="95.0" class="wire wire--plaus" marker-end="url(#tip-plaus)" /><text x="694.0" y="61.0" class="wire-label wire-label--plaus" text-anchor="middle">valide, rejoue</text><line x1="580.0" y1="128" x2="580.0" y2="258" class="wire wire--content" marker-end="url(#tip-content)" /><text x="594.0" y="193.0" class="wire-label wire-label--content">réponses aux exercices</text><line x1="496" y1="291.0" x2="348" y2="291.0" class="wire wire--content" marker-end="url(#tip-content)" /><text x="422.0" y="275.0" class="wire-label wire-label--content" text-anchor="middle">si révision nécessaire</text><line x1="264.0" y1="258" x2="352.0" y2="128" class="wire wire--content wire--return" marker-end="url(#tip-content)" /><rect x="288.0" y="182.0" width="56" height="16" class="label-backing" /><text x="338.0" y="193.0" class="wire-label wire-label--content" text-anchor="end">réécrit</text><line x1="40" y1="376" x2="860" y2="376" class="axis-rule" /><line x1="40" y1="400" x2="76" y2="400" class="wire wire--content" /><text x="86" y="404" class="tick">Signal qualité : déclenche une révision du contenu</text><line x1="470" y1="400" x2="506" y2="400" class="wire wire--plaus" /><text x="516" y="404" class="tick">Signal plausibilité : ne touche jamais au contenu</text></svg></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Déroulé d'une séance</h2>
+      <span class="chan chan--content">qualité</span>
+      <span class="chan chan--plaus">plausibilité</span>
+    </div>
+    <p class="lede">Le schéma précédent dit qui parle à qui. Celui-ci dit dans quel ordre, ce qui part en même
+       temps, et ce qui arrête la boucle. C'est ce déroulé qui explique pourquoi ce run de 60 appels
+       ne coûte que 28 attentes successives.</p>
+    <div class="panel"><svg viewBox="0 0 900 540" class="chart chart--attached" role="img" aria-label="Déroulé temporel d'une séance, itération par itération"><g class="graticule"><line x1="40" y1="0" x2="40" y2="540" class="grat" /><line x1="80" y1="0" x2="80" y2="540" class="grat" /><line x1="120" y1="0" x2="120" y2="540" class="grat" /><line x1="160" y1="0" x2="160" y2="540" class="grat" /><line x1="200" y1="0" x2="200" y2="540" class="grat" /><line x1="240" y1="0" x2="240" y2="540" class="grat" /><line x1="280" y1="0" x2="280" y2="540" class="grat" /><line x1="320" y1="0" x2="320" y2="540" class="grat" /><line x1="360" y1="0" x2="360" y2="540" class="grat" /><line x1="400" y1="0" x2="400" y2="540" class="grat" /><line x1="440" y1="0" x2="440" y2="540" class="grat" /><line x1="480" y1="0" x2="480" y2="540" class="grat" /><line x1="520" y1="0" x2="520" y2="540" class="grat" /><line x1="560" y1="0" x2="560" y2="540" class="grat" /><line x1="600" y1="0" x2="600" y2="540" class="grat" /><line x1="640" y1="0" x2="640" y2="540" class="grat" /><line x1="680" y1="0" x2="680" y2="540" class="grat" /><line x1="720" y1="0" x2="720" y2="540" class="grat" /><line x1="760" y1="0" x2="760" y2="540" class="grat" /><line x1="800" y1="0" x2="800" y2="540" class="grat" /><line x1="840" y1="0" x2="840" y2="540" class="grat" /><line x1="880" y1="0" x2="880" y2="540" class="grat" /><line x1="0" y1="40" x2="900" y2="40" class="grat" /><line x1="0" y1="80" x2="900" y2="80" class="grat" /><line x1="0" y1="120" x2="900" y2="120" class="grat" /><line x1="0" y1="160" x2="900" y2="160" class="grat" /><line x1="0" y1="200" x2="900" y2="200" class="grat" /><line x1="0" y1="240" x2="900" y2="240" class="grat" /><line x1="0" y1="280" x2="900" y2="280" class="grat" /><line x1="0" y1="320" x2="900" y2="320" class="grat" /><line x1="0" y1="360" x2="900" y2="360" class="grat" /><line x1="0" y1="400" x2="900" y2="400" class="grat" /><line x1="0" y1="440" x2="900" y2="440" class="grat" /><line x1="0" y1="480" x2="900" y2="480" class="grat" /><line x1="0" y1="520" x2="900" y2="520" class="grat" /></g><rect x="36" y="14" width="200" height="34" rx="3" class="step" /><text x="136" y="36" class="step-label" text-anchor="middle">Planner, 1 appel</text><rect x="290" y="14" width="240" height="34" rx="3" class="step step--human" /><text x="410" y="36" class="step-label" text-anchor="middle">l'enseignant valide le plan</text><line x1="236" y1="31" x2="290" y2="31" class="wire wire--flow" marker-end="url(#tip-flow)" /><line x1="530" y1="31" x2="590" y2="31" class="wire wire--flow" marker-end="url(#tip-flow)" /><text x="600" y="35" class="step-note">puis, pour chaque séance :</text><text x="102.0" y="92" class="lane-head" text-anchor="middle">Generator</text><line x1="102.0" y1="102" x2="102.0" y2="444" class="lane-line" /><text x="280.0" y="92" class="lane-head" text-anchor="middle">Élèves-agents</text><line x1="280.0" y1="102" x2="280.0" y2="444" class="lane-line" /><text x="469.0" y="92" class="lane-head" text-anchor="middle">DriftWatcher</text><line x1="469.0" y1="102" x2="469.0" y2="444" class="lane-line" /><text x="648.0" y="92" class="lane-head" text-anchor="middle">Diagnostician</text><line x1="648.0" y1="102" x2="648.0" y2="444" class="lane-line" /><text x="813.0" y="92" class="lane-head" text-anchor="middle">Reviser</text><line x1="813.0" y1="102" x2="813.0" y2="444" class="lane-line" /><text x="36" y="108" class="iter-tag">ITÉR. 0</text><line x1="0" y1="116" x2="900" y2="116" class="axis-rule" /><rect x="36" y="130" width="132" height="34" rx="3" class="step" /><text x="102.0" y="152" class="step-label" text-anchor="middle">écrit la leçon</text><rect x="196" y="124" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="133" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="142" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="151" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="160" width="168" height="7" rx="2" class="step step--parallel" /><text x="280.0" y="188" class="step-label" text-anchor="middle">5 élèves en parallèle</text><rect x="394" y="130" width="150" height="34" rx="3" class="step step--rule" /><text x="469.0" y="152" class="step-label" text-anchor="middle">valide</text><path d="M443.0,174 a 26 16 0 1 0 52 0" class="wire wire--plaus" marker-end="url(#tip-plaus)" fill="none" /><text x="469.0" y="204" class="step-note" text-anchor="middle">rejeu 1 fois, sinon corrige</text><rect x="572" y="130" width="152" height="34" rx="3" class="step" /><text x="648.0" y="152" class="step-label" text-anchor="middle">corrige, diagnostique</text><line x1="168" y1="147" x2="196" y2="147" class="wire wire--flow" marker-end="url(#tip-flow)" /><line x1="364" y1="147" x2="394" y2="147" class="wire wire--plaus" marker-end="url(#tip-plaus)" /><line x1="544" y1="147" x2="572" y2="147" class="wire wire--content" marker-end="url(#tip-content)" /><rect x="762" y="130" width="102" height="34" rx="3" class="step" /><text x="813.0" y="152" class="step-label" text-anchor="middle">note de révision</text><line x1="724" y1="147" x2="762" y2="147" class="wire wire--content" marker-end="url(#tip-content)" /><text x="648.0" y="188" class="step-note" text-anchor="middle">révision nécessaire</text><path d="M813.0,164 L813.0,258 L102.0,258 L102.0,300" class="wire wire--content" stroke-dasharray="3 5" fill="none" marker-end="url(#tip-content)" /><text x="36" y="278" class="iter-tag">ITÉR. 1</text><line x1="0" y1="286" x2="900" y2="286" class="axis-rule" /><rect x="36" y="300" width="132" height="34" rx="3" class="step" /><text x="102.0" y="322" class="step-label" text-anchor="middle">réécrit</text><rect x="196" y="294" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="303" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="312" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="321" width="168" height="7" rx="2" class="step step--parallel" /><rect x="196" y="330" width="168" height="7" rx="2" class="step step--parallel" /><text x="280.0" y="358" class="step-label" text-anchor="middle">5 élèves en parallèle</text><rect x="394" y="300" width="150" height="34" rx="3" class="step step--rule" /><text x="469.0" y="322" class="step-label" text-anchor="middle">valide</text><path d="M443.0,344 a 26 16 0 1 0 52 0" class="wire wire--plaus" marker-end="url(#tip-plaus)" fill="none" /><text x="469.0" y="374" class="step-note" text-anchor="middle">rejeu 1 fois, sinon corrige</text><rect x="572" y="300" width="152" height="34" rx="3" class="step" /><text x="648.0" y="322" class="step-label" text-anchor="middle">corrige, diagnostique</text><line x1="168" y1="317" x2="196" y2="317" class="wire wire--flow" marker-end="url(#tip-flow)" /><line x1="364" y1="317" x2="394" y2="317" class="wire wire--plaus" marker-end="url(#tip-plaus)" /><line x1="544" y1="317" x2="572" y2="317" class="wire wire--content" marker-end="url(#tip-content)" /><text x="648.0" y="358" class="step-note step-note--stop" text-anchor="middle">plus de révision nécessaire</text><line x1="648.0" y1="334" x2="648.0" y2="450" class="wire wire--flow" marker-end="url(#tip-flow)" /><rect x="36" y="464" width="834" height="40" rx="3" class="step step--commit" /><text x="453" y="489" class="step-label" text-anchor="middle">séance figée : les 5 mémoires sont réécrites par les élèves eux-mêmes, puis archivées</text><text x="36" y="528" class="step-note">La boucle s'arrête dès que le Diagnostician ne demande plus de révision, et au plus tard après 2 itérations.</text></svg></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Anatomie d'un élève-agent</h2>
+      <span class="chan chan--subject">sujet</span>
+    </div>
+    <p class="lede">Cinq élèves-agents, cinq méprises nommées. Et une précaution sans laquelle rien de ce
+       rapport ne vaudrait : l'énoncé leur parvient amputé de sa réponse.</p>
+    
+    <div class="panel panel--pad">
+      <p class="finding">Une persona ne porte pas une humeur, elle porte une <b>méprise nommée</b>. C'est elle qui
+         rend les erreurs reproductibles et les notes du Reviser actionnables.</p>
+      <ul class="persona-list">
+        <li class="persona">
+          <span class="persona-id">eleve_rapide</span>
+          <span class="persona-profile">rapide</span>
+          <ul class="persona-misc"><li>pense qu&#x27;optimiser trop tôt est toujours mieux</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">eleve_difficulte</span>
+          <span class="persona-profile">en difficulté</span>
+          <ul class="persona-misc"><li>confond affectation (=) et égalité (==)</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">eleve_distrait</span>
+          <span class="persona-profile">distrait</span>
+          <ul class="persona-misc"><li>oublie les cas limites (listes vides, zéro)</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">eleve_moyen</span>
+          <span class="persona-profile">moyen</span>
+          <ul class="persona-misc"><li>pense qu&#x27;une boucle for ne peut pas décrémenter</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">eleve_anxieux</span>
+          <span class="persona-profile">anxieux</span>
+          <ul class="persona-misc"><li>évite de tester son code par peur de se tromper</li></ul>
+        </li></ul>
+      
+      <div class="prompt-split">
+        <div class="prompt-side prompt-side--seen">
+          <span class="prompt-key">Ce que l'élève-agent reçoit</span>
+          <p class="prompt-line"><b>question</b> Après a = 3 puis b = a puis a = 5, que vaut b ?</p>
+          <p class="prompt-line"><b>concept</b> variables</p>
+        </div>
+        <div class="prompt-side prompt-side--hidden">
+          <span class="prompt-key">Ce qui lui est retiré</span>
+          <p class="prompt-line prompt-line--redacted"><b>expected_answer</b> 3</p>
+          <p class="prompt-note">Sans ce retrait, l'élève-agent recopierait la réponse et tous les taux de
+             réussite de ce rapport vaudraient 100 %.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Rétention par concept</h2>
+      <span class="chan chan--content">qualité</span>
+    </div>
+    <p class="lede">Taux de réussite mesuré à chaque séance où le concept est retesté. Une courbe qui redescend est
+       un concept que la classe perd, pas un contenu qui a déplu.</p>
+    <div class="panel"><svg viewBox="0 0 860 380" class="chart chart--attached" role="img" aria-label="Courbe de rétention par concept"><g class="graticule"><line x1="40" y1="0" x2="40" y2="380" class="grat" /><line x1="80" y1="0" x2="80" y2="380" class="grat" /><line x1="120" y1="0" x2="120" y2="380" class="grat" /><line x1="160" y1="0" x2="160" y2="380" class="grat" /><line x1="200" y1="0" x2="200" y2="380" class="grat" /><line x1="240" y1="0" x2="240" y2="380" class="grat" /><line x1="280" y1="0" x2="280" y2="380" class="grat" /><line x1="320" y1="0" x2="320" y2="380" class="grat" /><line x1="360" y1="0" x2="360" y2="380" class="grat" /><line x1="400" y1="0" x2="400" y2="380" class="grat" /><line x1="440" y1="0" x2="440" y2="380" class="grat" /><line x1="480" y1="0" x2="480" y2="380" class="grat" /><line x1="520" y1="0" x2="520" y2="380" class="grat" /><line x1="560" y1="0" x2="560" y2="380" class="grat" /><line x1="600" y1="0" x2="600" y2="380" class="grat" /><line x1="640" y1="0" x2="640" y2="380" class="grat" /><line x1="680" y1="0" x2="680" y2="380" class="grat" /><line x1="720" y1="0" x2="720" y2="380" class="grat" /><line x1="760" y1="0" x2="760" y2="380" class="grat" /><line x1="800" y1="0" x2="800" y2="380" class="grat" /><line x1="840" y1="0" x2="840" y2="380" class="grat" /><line x1="0" y1="40" x2="860" y2="40" class="grat" /><line x1="0" y1="80" x2="860" y2="80" class="grat" /><line x1="0" y1="120" x2="860" y2="120" class="grat" /><line x1="0" y1="160" x2="860" y2="160" class="grat" /><line x1="0" y1="200" x2="860" y2="200" class="grat" /><line x1="0" y1="240" x2="860" y2="240" class="grat" /><line x1="0" y1="280" x2="860" y2="280" class="grat" /><line x1="0" y1="320" x2="860" y2="320" class="grat" /><line x1="0" y1="360" x2="860" y2="360" class="grat" /></g><line x1="62" y1="334.0" x2="832" y2="334.0" class="axis-rule" /><text x="50" y="338.0" class="tick" text-anchor="end">0</text><line x1="62" y1="257.5" x2="832" y2="257.5" class="axis-rule" /><text x="50" y="261.5" class="tick" text-anchor="end">25</text><line x1="62" y1="181.0" x2="832" y2="181.0" class="axis-rule" /><text x="50" y="185.0" class="tick" text-anchor="end">50</text><line x1="62" y1="104.5" x2="832" y2="104.5" class="axis-rule" /><text x="50" y="108.5" class="tick" text-anchor="end">75</text><line x1="62" y1="28.0" x2="832" y2="28.0" class="axis-rule" /><text x="50" y="32.0" class="tick" text-anchor="end">100</text><text x="50" y="16" class="tick tick--unit" text-anchor="end">%</text><line x1="62.0" y1="28" x2="62.0" y2="334" class="axis-tickline" /><text x="62.0" y="358" class="tick" text-anchor="middle">S1</text><line x1="254.5" y1="28" x2="254.5" y2="334" class="axis-tickline" /><text x="254.5" y="358" class="tick" text-anchor="middle">S2</text><line x1="447.0" y1="28" x2="447.0" y2="334" class="axis-tickline" /><text x="447.0" y="358" class="tick" text-anchor="middle">S3</text><line x1="639.5" y1="28" x2="639.5" y2="334" class="axis-tickline" /><text x="639.5" y="358" class="tick" text-anchor="middle">S4</text><line x1="832.0" y1="28" x2="832.0" y2="334" class="axis-tickline" /><text x="832.0" y="358" class="tick" text-anchor="middle">S5</text><path d="M254.5,135.1 L447.0,104.5 L639.5,150.4 L832.0,165.7" class="trace" style="stroke:#3987e5" fill="none" /><circle cx="254.5" cy="135.1" r="5" style="fill:#3987e5" class="node-dot"><title>boucle for : 65% de réussite en séance 2</title></circle><circle cx="447.0" cy="104.5" r="5" style="fill:#3987e5" class="node-dot"><title>boucle for : 75% de réussite en séance 3</title></circle><circle cx="639.5" cy="150.4" r="5" style="fill:#3987e5" class="node-dot"><title>boucle for : 60% de réussite en séance 4</title></circle><circle cx="832.0" cy="165.7" r="5" style="fill:#3987e5" class="node-dot"><title>boucle for : 55% de réussite en séance 5</title></circle><path d="M447.0,113.7 L639.5,135.1 L832.0,150.4" class="trace" style="stroke:#c98500" fill="none" /><circle cx="447.0" cy="113.7" r="5" style="fill:#c98500" class="node-dot"><title>boucle while : 72% de réussite en séance 3</title></circle><circle cx="639.5" cy="135.1" r="5" style="fill:#c98500" class="node-dot"><title>boucle while : 65% de réussite en séance 4</title></circle><circle cx="832.0" cy="150.4" r="5" style="fill:#c98500" class="node-dot"><title>boucle while : 60% de réussite en séance 5</title></circle><path d="M639.5,226.9 L832.0,181.0" class="trace" style="stroke:#9085e9" fill="none" /><circle cx="639.5" cy="226.9" r="5" style="fill:#9085e9" class="node-dot"><title>conditions imbriquées : 35% de réussite en séance 4</title></circle><circle cx="832.0" cy="181.0" r="5" style="fill:#9085e9" class="node-dot"><title>conditions imbriquées : 50% de réussite en séance 5</title></circle><path d="M832.0,153.5" class="trace" style="stroke:#d55181" fill="none" /><circle cx="832.0" cy="153.5" r="5" style="fill:#d55181" class="node-dot"><title>fonctions : 59% de réussite en séance 5</title></circle><path d="M62.0,211.6 L254.5,165.7 L447.0,196.3 L639.5,226.9 L832.0,242.2" class="trace" style="stroke:#008300" fill="none" /><circle cx="62.0" cy="211.6" r="5" style="fill:#008300" class="node-dot"><title>variables : 40% de réussite en séance 1</title></circle><circle cx="254.5" cy="165.7" r="5" style="fill:#008300" class="node-dot"><title>variables : 55% de réussite en séance 2</title></circle><circle cx="447.0" cy="196.3" r="5" style="fill:#008300" class="node-dot"><title>variables : 45% de réussite en séance 3</title></circle><circle cx="639.5" cy="226.9" r="5" style="fill:#008300" class="node-dot"><title>variables : 35% de réussite en séance 4</title></circle><circle cx="832.0" cy="242.2" r="5" style="fill:#008300" class="node-dot"><title>variables : 30% de réussite en séance 5</title></circle></svg><div class="legend"><span class="legend-item"><span class="legend-trace" style="background:#3987e5"></span>boucle for</span><span class="legend-item"><span class="legend-trace" style="background:#c98500"></span>boucle while</span><span class="legend-item"><span class="legend-trace" style="background:#9085e9"></span>conditions imbriquées</span><span class="legend-item"><span class="legend-trace" style="background:#d55181"></span>fonctions</span><span class="legend-item"><span class="legend-trace" style="background:#008300"></span>variables</span></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Demi-vie mesurée</h2>
+      <span class="chan chan--content">qualité</span>
+    </div>
+    <p class="lede">La courbe ci-dessus se lit ; celle-ci se chiffre. Pour chaque concept retesté après son pic,
+       voici ce que la classe en a perdu, et en combien de séances.</p>
+    
+    <div class="panel panel--pad">
+      <p class="finding">Le concept qui se dégrade le plus vite est <b>variables</b> :
+         il perd <b>25 points</b> de réussite en 3
+         séances après son pic.</p>
+      <ul class="decay-list">
+        <li class="decay">
+          <span class="decay-name">variables</span>
+          <span class="decay-track"><span class="decay-fill" style="width:45%"></span></span>
+          <span class="decay-figure">-25 pts</span>
+          <span class="decay-detail">55% en S2
+            puis 30% en S5, soit 3 séances plus tard</span>
+        </li>
+        <li class="decay">
+          <span class="decay-name">boucle for</span>
+          <span class="decay-track"><span class="decay-fill" style="width:27%"></span></span>
+          <span class="decay-figure">-20 pts</span>
+          <span class="decay-detail">75% en S3
+            puis 55% en S5, soit 2 séances plus tard</span>
+        </li>
+        <li class="decay">
+          <span class="decay-name">boucle while</span>
+          <span class="decay-track"><span class="decay-fill" style="width:17%"></span></span>
+          <span class="decay-figure">-12 pts</span>
+          <span class="decay-detail">72% en S3
+            puis 60% en S5, soit 2 séances plus tard</span>
+        </li></ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Le cycle de la mémoire</h2>
+      <span class="chan chan--plaus">plausibilité</span>
+    </div>
+    <p class="lede">Le mécanisme qui fait tenir la thèse du projet : l'oubli n'est pas une courbe de
+       décroissance codée en dur, c'est une décision de l'élève-agent, qui passe ensuite un contrôle.</p>
+    <div class="panel"><svg viewBox="0 0 880 200" class="chart chart--attached" role="img" aria-label="Cycle de la mémoire d'un élève-agent"><g class="graticule"><line x1="40" y1="0" x2="40" y2="200" class="grat" /><line x1="80" y1="0" x2="80" y2="200" class="grat" /><line x1="120" y1="0" x2="120" y2="200" class="grat" /><line x1="160" y1="0" x2="160" y2="200" class="grat" /><line x1="200" y1="0" x2="200" y2="200" class="grat" /><line x1="240" y1="0" x2="240" y2="200" class="grat" /><line x1="280" y1="0" x2="280" y2="200" class="grat" /><line x1="320" y1="0" x2="320" y2="200" class="grat" /><line x1="360" y1="0" x2="360" y2="200" class="grat" /><line x1="400" y1="0" x2="400" y2="200" class="grat" /><line x1="440" y1="0" x2="440" y2="200" class="grat" /><line x1="480" y1="0" x2="480" y2="200" class="grat" /><line x1="520" y1="0" x2="520" y2="200" class="grat" /><line x1="560" y1="0" x2="560" y2="200" class="grat" /><line x1="600" y1="0" x2="600" y2="200" class="grat" /><line x1="640" y1="0" x2="640" y2="200" class="grat" /><line x1="680" y1="0" x2="680" y2="200" class="grat" /><line x1="720" y1="0" x2="720" y2="200" class="grat" /><line x1="760" y1="0" x2="760" y2="200" class="grat" /><line x1="800" y1="0" x2="800" y2="200" class="grat" /><line x1="840" y1="0" x2="840" y2="200" class="grat" /><line x1="0" y1="40" x2="880" y2="40" class="grat" /><line x1="0" y1="80" x2="880" y2="80" class="grat" /><line x1="0" y1="120" x2="880" y2="120" class="grat" /><line x1="0" y1="160" x2="880" y2="160" class="grat" /></g><defs><marker id="tip-mem" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--vapor)" /></marker><marker id="tip-mem-plaus" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0.5 L8,4.5 L0,8.5 Z" fill="var(--ch-plaus)" /></marker></defs><rect x="30" y="52" width="140" height="58" rx="4" class="step" /><text x="100.0" y="78" class="node-name" text-anchor="middle">Mémoire, séance N</text><text x="100.0" y="96" class="node-meta" text-anchor="middle">état d'entrée</text><rect x="250" y="52" width="200" height="58" rx="4" class="step step--commit" /><text x="350.0" y="78" class="node-name" text-anchor="middle">L'élève décide</text><text x="350.0" y="96" class="node-meta" text-anchor="middle">il choisit ce qu'il oublie</text><rect x="490" y="52" width="140" height="58" rx="4" class="step step--rule" /><text x="560.0" y="78" class="node-name" text-anchor="middle">DriftWatcher</text><text x="560.0" y="96" class="node-meta" text-anchor="middle">3 règles, 0 LLM</text><rect x="710" y="52" width="140" height="58" rx="4" class="step" /><text x="780.0" y="78" class="node-name" text-anchor="middle">Mémoire, séance N+1</text><text x="780.0" y="96" class="node-meta" text-anchor="middle">état validé</text><line x1="170" y1="81" x2="250" y2="81" class="wire wire--flow" marker-end="url(#tip-mem)" /><line x1="450" y1="81" x2="490" y2="81" class="wire wire--plaus" marker-end="url(#tip-mem-plaus)" /><line x1="630" y1="81" x2="710" y2="81" class="wire wire--plaus" marker-end="url(#tip-mem-plaus)" /><path d="M560,110 L560,150 L340,150 L340,110" class="wire wire--plaus" fill="none" marker-end="url(#tip-mem-plaus)" /><text x="450" y="167" class="step-note" text-anchor="middle">si la mutation est invraisemblable : rejeu une fois, puis correction</text><text x="30" y="34" class="step-note">L'oubli n'est calculé par aucune formule : il est produit par l'élève-agent, puis contrôlé.</text></svg></div>
+      <div class="panel panel--pad delta">
+        <p class="finding">Exemple relevé dans ce run : <b>eleve_rapide</b>
+           entre la séance 1 et la séance 2.</p>
+        <div class="delta-grid">
+          <div class="delta-col">
+            <span class="prompt-key">Avant</span>
+            <p class="prompt-line"><b>maîtrisé</b> rien</p>
+            <p class="prompt-line"><b>oublié</b> rien</p>
+          </div>
+          <div class="delta-col delta-col--after">
+            <span class="prompt-key">Après</span>
+            <p class="prompt-line"><b>maîtrisé</b> variables</p>
+            <p class="prompt-line"><b>oublié</b> rien</p>
+          </div>
+          <div class="delta-col delta-col--diff">
+            <span class="prompt-key">Décidé par l'élève</span>
+            <p class="prompt-line"><b>acquis</b> variables</p>
+            <p class="prompt-line"><b>perdu</b> rien</p>
+          </div>
+        </div>
+      </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Trajectoire mémoire</h2>
+      <span class="chan chan--subject">sujet</span>
+    </div>
+    <p class="lede">Ce que chaque élève-agent retient, séance après séance. Ce qui est oublié s'efface vers le fond.</p>
+    <div class="panel"><svg viewBox="0 0 860 458" class="chart chart--attached" role="img" aria-label="Trajectoire mémoire par élève"><g class="graticule"><line x1="40" y1="0" x2="40" y2="458" class="grat" /><line x1="80" y1="0" x2="80" y2="458" class="grat" /><line x1="120" y1="0" x2="120" y2="458" class="grat" /><line x1="160" y1="0" x2="160" y2="458" class="grat" /><line x1="200" y1="0" x2="200" y2="458" class="grat" /><line x1="240" y1="0" x2="240" y2="458" class="grat" /><line x1="280" y1="0" x2="280" y2="458" class="grat" /><line x1="320" y1="0" x2="320" y2="458" class="grat" /><line x1="360" y1="0" x2="360" y2="458" class="grat" /><line x1="400" y1="0" x2="400" y2="458" class="grat" /><line x1="440" y1="0" x2="440" y2="458" class="grat" /><line x1="480" y1="0" x2="480" y2="458" class="grat" /><line x1="520" y1="0" x2="520" y2="458" class="grat" /><line x1="560" y1="0" x2="560" y2="458" class="grat" /><line x1="600" y1="0" x2="600" y2="458" class="grat" /><line x1="640" y1="0" x2="640" y2="458" class="grat" /><line x1="680" y1="0" x2="680" y2="458" class="grat" /><line x1="720" y1="0" x2="720" y2="458" class="grat" /><line x1="760" y1="0" x2="760" y2="458" class="grat" /><line x1="800" y1="0" x2="800" y2="458" class="grat" /><line x1="840" y1="0" x2="840" y2="458" class="grat" /><line x1="0" y1="40" x2="860" y2="40" class="grat" /><line x1="0" y1="80" x2="860" y2="80" class="grat" /><line x1="0" y1="120" x2="860" y2="120" class="grat" /><line x1="0" y1="160" x2="860" y2="160" class="grat" /><line x1="0" y1="200" x2="860" y2="200" class="grat" /><line x1="0" y1="240" x2="860" y2="240" class="grat" /><line x1="0" y1="280" x2="860" y2="280" class="grat" /><line x1="0" y1="320" x2="860" y2="320" class="grat" /><line x1="0" y1="360" x2="860" y2="360" class="grat" /><line x1="0" y1="400" x2="860" y2="400" class="grat" /><line x1="0" y1="440" x2="860" y2="440" class="grat" /></g><line x1="0" y1="10" x2="860" y2="10" class="axis-rule" /><text x="4" y="57.0" class="subject-id" dominant-baseline="middle">eleve_anxieux</text><rect x="176" y="65.6" width="46" height="8.4" class="mem mem--fragile"><title>eleve_anxieux, séance 1 : 1 fragile</title></rect><text x="199.0" y="94" class="tick" text-anchor="middle">S1</text><rect x="238" y="65.6" width="46" height="8.4" class="mem mem--held"><title>eleve_anxieux, séance 2 : 1 retenu</title></rect><rect x="238" y="55.2" width="46" height="8.4" class="mem mem--fragile"><title>eleve_anxieux, séance 2 : 1 fragile</title></rect><text x="261.0" y="94" class="tick" text-anchor="middle">S2</text><rect x="300" y="55.2" width="46" height="18.8" class="mem mem--held"><title>eleve_anxieux, séance 3 : 2 retenu</title></rect><rect x="300" y="44.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_anxieux, séance 3 : 1 fragile</title></rect><text x="323.0" y="94" class="tick" text-anchor="middle">S3</text><rect x="362" y="55.2" width="46" height="18.8" class="mem mem--held"><title>eleve_anxieux, séance 4 : 2 retenu</title></rect><rect x="362" y="34.4" width="46" height="18.8" class="mem mem--fragile"><title>eleve_anxieux, séance 4 : 2 fragile</title></rect><text x="385.0" y="94" class="tick" text-anchor="middle">S4</text><rect x="424" y="44.8" width="46" height="29.2" class="mem mem--held"><title>eleve_anxieux, séance 5 : 3 retenu</title></rect><rect x="424" y="24.0" width="46" height="18.8" class="mem mem--fragile"><title>eleve_anxieux, séance 5 : 2 fragile</title></rect><text x="447.0" y="94" class="tick" text-anchor="middle">S5</text><line x1="0" y1="96" x2="860" y2="96" class="axis-rule" /><text x="4" y="143.0" class="subject-id" dominant-baseline="middle">eleve_difficulte</text><rect x="176" y="151.6" width="46" height="8.4" class="mem mem--fragile"><title>eleve_difficulte, séance 1 : 1 fragile</title></rect><text x="199.0" y="180" class="tick" text-anchor="middle">S1</text><rect x="238" y="151.6" width="46" height="8.4" class="mem mem--held"><title>eleve_difficulte, séance 2 : 1 retenu</title></rect><rect x="238" y="141.2" width="46" height="8.4" class="mem mem--fragile"><title>eleve_difficulte, séance 2 : 1 fragile</title></rect><text x="261.0" y="180" class="tick" text-anchor="middle">S2</text><rect x="300" y="141.2" width="46" height="18.8" class="mem mem--held"><title>eleve_difficulte, séance 3 : 2 retenu</title></rect><rect x="300" y="130.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_difficulte, séance 3 : 1 fragile</title></rect><text x="323.0" y="180" class="tick" text-anchor="middle">S3</text><rect x="362" y="141.2" width="46" height="18.8" class="mem mem--held"><title>eleve_difficulte, séance 4 : 2 retenu</title></rect><rect x="362" y="130.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_difficulte, séance 4 : 1 fragile</title></rect><rect x="362" y="120.4" width="46" height="8.4" class="mem mem--lost"><title>eleve_difficulte, séance 4 : 1 oublié</title></rect><text x="385.0" y="180" class="tick" text-anchor="middle">S4</text><rect x="424" y="130.8" width="46" height="29.2" class="mem mem--held"><title>eleve_difficulte, séance 5 : 3 retenu</title></rect><rect x="424" y="120.4" width="46" height="8.4" class="mem mem--fragile"><title>eleve_difficulte, séance 5 : 1 fragile</title></rect><rect x="424" y="110.0" width="46" height="8.4" class="mem mem--lost"><title>eleve_difficulte, séance 5 : 1 oublié</title></rect><text x="447.0" y="180" class="tick" text-anchor="middle">S5</text><line x1="0" y1="182" x2="860" y2="182" class="axis-rule" /><text x="4" y="229.0" class="subject-id" dominant-baseline="middle">eleve_distrait</text><rect x="176" y="237.6" width="46" height="8.4" class="mem mem--fragile"><title>eleve_distrait, séance 1 : 1 fragile</title></rect><text x="199.0" y="266" class="tick" text-anchor="middle">S1</text><rect x="238" y="237.6" width="46" height="8.4" class="mem mem--held"><title>eleve_distrait, séance 2 : 1 retenu</title></rect><rect x="238" y="227.2" width="46" height="8.4" class="mem mem--fragile"><title>eleve_distrait, séance 2 : 1 fragile</title></rect><text x="261.0" y="266" class="tick" text-anchor="middle">S2</text><rect x="300" y="227.2" width="46" height="18.8" class="mem mem--held"><title>eleve_distrait, séance 3 : 2 retenu</title></rect><rect x="300" y="216.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_distrait, séance 3 : 1 fragile</title></rect><text x="323.0" y="266" class="tick" text-anchor="middle">S3</text><rect x="362" y="227.2" width="46" height="18.8" class="mem mem--held"><title>eleve_distrait, séance 4 : 2 retenu</title></rect><rect x="362" y="206.4" width="46" height="18.8" class="mem mem--fragile"><title>eleve_distrait, séance 4 : 2 fragile</title></rect><text x="385.0" y="266" class="tick" text-anchor="middle">S4</text><rect x="424" y="216.8" width="46" height="29.2" class="mem mem--held"><title>eleve_distrait, séance 5 : 3 retenu</title></rect><rect x="424" y="196.0" width="46" height="18.8" class="mem mem--fragile"><title>eleve_distrait, séance 5 : 2 fragile</title></rect><text x="447.0" y="266" class="tick" text-anchor="middle">S5</text><line x1="0" y1="268" x2="860" y2="268" class="axis-rule" /><text x="4" y="315.0" class="subject-id" dominant-baseline="middle">eleve_moyen</text><rect x="176" y="323.6" width="46" height="8.4" class="mem mem--fragile"><title>eleve_moyen, séance 1 : 1 fragile</title></rect><text x="199.0" y="352" class="tick" text-anchor="middle">S1</text><rect x="238" y="323.6" width="46" height="8.4" class="mem mem--held"><title>eleve_moyen, séance 2 : 1 retenu</title></rect><rect x="238" y="313.2" width="46" height="8.4" class="mem mem--fragile"><title>eleve_moyen, séance 2 : 1 fragile</title></rect><text x="261.0" y="352" class="tick" text-anchor="middle">S2</text><rect x="300" y="313.2" width="46" height="18.8" class="mem mem--held"><title>eleve_moyen, séance 3 : 2 retenu</title></rect><rect x="300" y="302.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_moyen, séance 3 : 1 fragile</title></rect><text x="323.0" y="352" class="tick" text-anchor="middle">S3</text><rect x="362" y="313.2" width="46" height="18.8" class="mem mem--held"><title>eleve_moyen, séance 4 : 2 retenu</title></rect><rect x="362" y="302.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_moyen, séance 4 : 1 fragile</title></rect><rect x="362" y="292.4" width="46" height="8.4" class="mem mem--lost"><title>eleve_moyen, séance 4 : 1 oublié</title></rect><text x="385.0" y="352" class="tick" text-anchor="middle">S4</text><rect x="424" y="302.8" width="46" height="29.2" class="mem mem--held"><title>eleve_moyen, séance 5 : 3 retenu</title></rect><rect x="424" y="292.4" width="46" height="8.4" class="mem mem--fragile"><title>eleve_moyen, séance 5 : 1 fragile</title></rect><rect x="424" y="282.0" width="46" height="8.4" class="mem mem--lost"><title>eleve_moyen, séance 5 : 1 oublié</title></rect><text x="447.0" y="352" class="tick" text-anchor="middle">S5</text><line x1="0" y1="354" x2="860" y2="354" class="axis-rule" /><text x="4" y="401.0" class="subject-id" dominant-baseline="middle">eleve_rapide</text><rect x="176" y="409.6" width="46" height="8.4" class="mem mem--fragile"><title>eleve_rapide, séance 1 : 1 fragile</title></rect><text x="199.0" y="438" class="tick" text-anchor="middle">S1</text><rect x="238" y="409.6" width="46" height="8.4" class="mem mem--held"><title>eleve_rapide, séance 2 : 1 retenu</title></rect><rect x="238" y="399.2" width="46" height="8.4" class="mem mem--fragile"><title>eleve_rapide, séance 2 : 1 fragile</title></rect><text x="261.0" y="438" class="tick" text-anchor="middle">S2</text><rect x="300" y="399.2" width="46" height="18.8" class="mem mem--held"><title>eleve_rapide, séance 3 : 2 retenu</title></rect><rect x="300" y="388.8" width="46" height="8.4" class="mem mem--fragile"><title>eleve_rapide, séance 3 : 1 fragile</title></rect><text x="323.0" y="438" class="tick" text-anchor="middle">S3</text><rect x="362" y="399.2" width="46" height="18.8" class="mem mem--held"><title>eleve_rapide, séance 4 : 2 retenu</title></rect><rect x="362" y="378.4" width="46" height="18.8" class="mem mem--fragile"><title>eleve_rapide, séance 4 : 2 fragile</title></rect><text x="385.0" y="438" class="tick" text-anchor="middle">S4</text><rect x="424" y="388.8" width="46" height="29.2" class="mem mem--held"><title>eleve_rapide, séance 5 : 3 retenu</title></rect><rect x="424" y="368.0" width="46" height="18.8" class="mem mem--fragile"><title>eleve_rapide, séance 5 : 2 fragile</title></rect><text x="447.0" y="438" class="tick" text-anchor="middle">S5</text></svg><div class="legend"><span class="legend-item"><span class="legend-swatch mem--held"></span>retenu</span><span class="legend-item"><span class="legend-swatch mem--fragile"></span>fragile</span><span class="legend-item"><span class="legend-swatch mem--lost"></span>oublié</span></div></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Les cinq profils divergent-ils ?</h2>
+      <span class="chan chan--subject">sujet</span>
+    </div>
+    <p class="lede">La question qu'un jury posera en premier : cinq élèves-agents joués par le même modèle
+       sont-ils autre chose que cinq copies ? Réponse mesurée sur leurs corrections, pas affirmée.</p>
+    
+    <div class="panel panel--pad">
+      <p class="finding">Écart entre le profil le plus solide et le plus fragile :
+         <b>40 points</b>. Les profils se comportent bien différemment : le système ne simule pas cinq fois le même élève.</p>
+      <ul class="subject-list">
+        <li class="subject">
+          <span class="subject-name">eleve_rapide</span>
+          <span class="subject-track"><span class="subject-fill" style="width:80%"></span></span>
+          <span class="subject-figure">80%</span>
+          <span class="subject-detail">20/25 réponses justes</span>
+        </li>
+        <li class="subject">
+          <span class="subject-name">eleve_moyen</span>
+          <span class="subject-track"><span class="subject-fill" style="width:72%"></span></span>
+          <span class="subject-figure">72%</span>
+          <span class="subject-detail">18/25 réponses justes</span>
+        </li>
+        <li class="subject">
+          <span class="subject-name">eleve_distrait</span>
+          <span class="subject-track"><span class="subject-fill" style="width:48%"></span></span>
+          <span class="subject-figure">48%</span>
+          <span class="subject-detail">12/25 réponses justes</span>
+        </li>
+        <li class="subject">
+          <span class="subject-name">eleve_anxieux</span>
+          <span class="subject-track"><span class="subject-fill" style="width:44%"></span></span>
+          <span class="subject-figure">44%</span>
+          <span class="subject-detail">11/25 réponses justes</span>
+        </li>
+        <li class="subject">
+          <span class="subject-name">eleve_difficulte</span>
+          <span class="subject-track"><span class="subject-fill" style="width:40%"></span></span>
+          <span class="subject-figure">40%</span>
+          <span class="subject-detail">10/25 réponses justes</span>
+        </li></ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Contenu réécrit</h2>
+      <span class="chan chan--content">qualité</span>
+    </div>
+    <p class="lede">Ce que le Reviser a demandé, et ce que le Generator a produit en réponse.</p>
+    
+        <article class="revision">
+          <header class="revision-head">
+            <span class="revision-index">Séance 2</span>
+            <h3>Parcourir dans les deux sens</h3>
+          </header>
+          <p class="revision-note"><span class="note-key">Note du Reviser</span>Trois élèves sur cinq ont répondu que range ne sait aller que vers le haut : la méprise du profil moyen est confirmée par leurs réponses. Ajouter un exemple à pas négatif avant l&#x27;exercice, et leur faire écrire la valeur de i à chaque tour.</p>
+          <div class="revision-body">
+            <div class="draft draft--before"><span class="draft-key">v1</span><p>La boucle for parcourt une séquence connue à l&#x27;avance. for i in range(5) répète cinq fois, avec i qui prend successivement les valeurs 0 à 4.</p></div>
+            <div class="draft draft--after"><span class="draft-key">v2</span><p>La boucle for parcourt une séquence connue à l&#x27;avance, dans un sens comme dans l&#x27;autre. range(5) monte de 0 à 4, range(4, -1, -1) redescend de 4 à 0 : le troisième argument est le pas, et rien n&#x27;interdit qu&#x27;il soit négatif.</p></div>
+          </div>
+        </article>
+        <article class="revision">
+          <header class="revision-head">
+            <span class="revision-index">Séance 3</span>
+            <h3>La boucle qui ne sait pas quand s&#x27;arrêter</h3>
+          </header>
+          <p class="revision-note"><span class="note-key">Note du Reviser</span>Les élèves rapides s&#x27;ennuient sur un exercice sans risque d&#x27;erreur, et le profil anxieux n&#x27;a pas exécuté son code. Faire écrire volontairement une boucle infinie, leur faire prédire ce qui se passe, puis la réparer : l&#x27;erreur devient l&#x27;objet du cours.</p>
+          <div class="revision-body">
+            <div class="draft draft--before"><span class="draft-key">v1</span><p>La boucle while répète tant qu&#x27;une condition reste vraie. Contrairement au for, elle ne sait pas d&#x27;avance combien de tours elle fera.</p></div>
+            <div class="draft draft--after"><span class="draft-key">v2</span><p>La boucle while répète tant qu&#x27;une condition reste vraie, et c&#x27;est là son danger : si rien dans le corps ne rapproche la condition de False, elle tourne indéfiniment. Écrire une boucle qui ne s&#x27;arrête pas, puis la réparer, montre mieux qu&#x27;un cours ce qui l&#x27;arrête.</p></div>
+          </div>
+        </article>
+        <article class="revision">
+          <header class="revision-head">
+            <span class="revision-index">Séance 5</span>
+            <h3>Des variables qui ne vivent qu&#x27;à l&#x27;intérieur</h3>
+          </header>
+          <p class="revision-note"><span class="note-key">Note du Reviser</span>La réussite sur les variables est retombée à 30 % cinq séances après leur introduction. Rattacher les fonctions à un rappel actif de ce concept : faire manipuler des paramètres, qui sont des variables locales, au lieu d&#x27;énoncer la règle de portée.</p>
+          <div class="revision-body">
+            <div class="draft draft--before"><span class="draft-key">v1</span><p>Une fonction met un morceau de code de côté sous un nom, pour le rappeler plus tard sans le réécrire.</p></div>
+            <div class="draft draft--after"><span class="draft-key">v2</span><p>Une fonction met un morceau de code de côté sous un nom. Ses paramètres sont des variables qui n&#x27;existent qu&#x27;à l&#x27;intérieur d&#x27;elle : les modifier ne change rien dehors. C&#x27;est l&#x27;étiquette de la première séance, mais collée sur une table qu&#x27;on jette en sortant.</p></div>
+          </div>
+        </article>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Ce que la réécriture a gagné</h2>
+      <span class="chan chan--content">qualité</span>
+    </div>
+    <p class="lede">Réécrire coûte une itération complète. Reste à savoir si ça paie : voici le taux de réussite
+       du concept visé avant et après le passage du Reviser.</p>
+    
+    <div class="panel">
+      <p class="finding finding--inset">Sur les 3 séances réécrites, la réécriture rapporte en moyenne
+         <b>24 points</b> de réussite sur le concept visé. Le canal qualité produit donc un gain
+         mesurable, et pas seulement une reformulation.</p>
+      <table class="rules">
+        <thead><tr><th>Séance réécrite</th><th>Avant</th><th>Après</th><th>Gain</th></tr></thead>
+        <tbody>
+        <tr>
+          <td><span class="cell-index">S2</span>Parcourir dans les deux sens</td>
+          <td class="mono">30%</td>
+          <td class="mono">65%</td>
+          <td class="mono gain">+35 pts</td>
+        </tr>
+        <tr>
+          <td><span class="cell-index">S3</span>La boucle qui ne sait pas quand s&#x27;arrêter</td>
+          <td class="mono">50%</td>
+          <td class="mono">72%</td>
+          <td class="mono gain">+22 pts</td>
+        </tr>
+        <tr>
+          <td><span class="cell-index">S5</span>Des variables qui ne vivent qu&#x27;à l&#x27;intérieur</td>
+          <td class="mono">45%</td>
+          <td class="mono">59%</td>
+          <td class="mono gain">+14 pts</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Contrôles de plausibilité</h2>
+      <span class="chan chan--plaus">plausibilité</span>
+    </div>
+    <p class="lede">Trois règles déterministes gardent la classe synthétique crédible : un concept ne se maîtrise pas
+       sans avoir été enseigné, ne s'oublie pas sans avoir été acquis, et l'engagement ne bondit pas de plus de 0.4
+       en une séance.</p>
+    
+    <div class="panel">
+      <table class="rules">
+        <thead><tr><th>Règle</th><th>Élève</th><th class="count">Déclenchements</th></tr></thead>
+        <tbody><tr><td class="rule-cell">R1 — maîtrise d&#x27;un concept non enseigné</td><td class="mono">eleve_rapide</td><td class="mono count">1</td></tr></tbody>
+      </table>
+    </div>
+    <div class="alert"><span class="alert-key">Trajectoire suspecte</span><ul><li>eleve_rapide : engagement au maximum sur 3 itérations consécutives sans aucune erreur, profil trop lisse pour être plausible.</li></ul></div>
+    
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Budget d'appels du run</h2>
+      <span class="chan chan--subject">système</span>
+    </div>
+    <p class="lede">Ce que l'architecture coûte réellement, et ce que la parallélisation des élèves lui fait
+       économiser en attentes successives.</p>
+    
+    <div class="panel panel--pad">
+      <p class="finding">Ce run coûte <b>60 appels LLM</b>, dont
+         40 pour les seuls élèves-agents. Comme les 5 élèves d'une même
+         itération partent en parallèle, le chemin critique ne fait que <b>28 étapes</b>
+         au lieu de 60 : la parallélisation économise 32 attentes successives.</p>
+      <ul class="budget-list">
+        <li class="budget-row">
+          <span class="budget-name">Élèves-agents</span>
+          <span class="budget-track"><span class="budget-fill" style="width:66.7%"></span></span>
+          <span class="budget-figure">40</span>
+        </li>
+        <li class="budget-row">
+          <span class="budget-name">Generator</span>
+          <span class="budget-track"><span class="budget-fill" style="width:13.3%"></span></span>
+          <span class="budget-figure">8</span>
+        </li>
+        <li class="budget-row">
+          <span class="budget-name">Diagnostician</span>
+          <span class="budget-track"><span class="budget-fill" style="width:13.3%"></span></span>
+          <span class="budget-figure">8</span>
+        </li>
+        <li class="budget-row">
+          <span class="budget-name">Reviser</span>
+          <span class="budget-track"><span class="budget-fill" style="width:5.0%"></span></span>
+          <span class="budget-figure">3</span>
+        </li>
+        <li class="budget-row">
+          <span class="budget-name">Planner</span>
+          <span class="budget-track"><span class="budget-fill" style="width:1.7%"></span></span>
+          <span class="budget-figure">1</span>
+        </li>
+        <li class="budget-row budget-row--zero">
+          <span class="budget-name">DriftWatcher</span>
+          <span class="budget-track"><span class="budget-fill" style="width:0.0%"></span></span>
+          <span class="budget-figure">0</span>
+        </li></ul>
+      <p class="budget-note">Le DriftWatcher est à zéro appel : c'est le seul agent entièrement déterministe,
+         et il valide pourtant chaque réaction d'élève.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Limites assumées</h2>
+      <span class="chan chan--content">honnêteté</span>
+    </div>
+    <p class="lede">Ce que le système ne démontre pas, et ce qu'il faudrait faire pour le démontrer.</p>
+    
+    <div class="panel panel--pad limits">
+      <div class="limit">
+        <span class="limit-key">Ce que ce rapport ne prouve pas</span>
+        <p>Les élèves-agents sont des simulations produites par un LLM, pas de vrais apprenants. Le système
+           optimise donc son contenu contre la représentation que le modèle se fait d'un élève en difficulté,
+           pas contre une classe réelle.</p>
+      </div>
+      <div class="limit">
+        <span class="limit-key">Biais d'auto-évaluation</span>
+        <p>Le Generator et les élèves-agents partagent le même modèle. Celui qui écrit le contenu et ceux qui
+           le jugent sont la même intelligence, ce qui expose le système à des révisions complaisantes.</p>
+      </div>
+      <div class="limit">
+        <span class="limit-key">Protocole de validation proposé</span>
+        <p>Rejouer un sous-ensemble des séances générées avec de vrais élèves, comparer leur taux de réussite
+           réel par concept à celui prédit par le Diagnostician, et mesurer l'écart. Tant que cet écart n'est
+           pas mesuré, les courbes de ce rapport décrivent le comportement du simulateur, pas celui d'une classe.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Rapport généré depuis le journal du run <code>demo-2026-09-03</code>. Les limites du système et le
+       protocole de validation proposé sont détaillés dans la section « Limites assumées » ci-dessus.</p>
+  </footer>
+
+</div>
+</body>
+</html>
