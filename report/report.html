@@ -312,6 +312,7 @@
   <div class="specimen">
     <span><b>run</b>demo-2026-09-03</span>
     <span><b>objectif</b>faire comprendre les boucles for/while à des débutants en programmation, niveau lycée</span>
+    <span><b>repo</b><a href="https://github.com/Zoxkyx/hackathon_epita" style="color:inherit">github.com/Zoxkyx/hackathon_epita</a></span>
   </div>
 
   <div class="rail">
@@ -334,6 +335,68 @@
       <div class="cell-value">5</div>
     </div>
   </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Répartition des tâches</h2>
+      <span class="chan chan--subject">équipe</span>
+    </div>
+    <p class="lede">Idée, débat et réflexion menés à plusieurs, puis le projet découpé en cinq lots
+       techniques que chacun a choisis, plus l'UI et la rédaction du rapport.</p>
+
+    <div class="panel panel--pad">
+      <p class="finding">Le découpage ci-dessous a été discuté collectivement avant que chacun ne
+         choisisse son lot ; <b>l'UI</b> et la <b>vérification finale du rapport</b> restent, elles,
+         des tâches partagées.</p>
+      <ul class="persona-list">
+        <li class="persona">
+          <span class="persona-id">Cadrage</span>
+          <span class="persona-profile">Tout le groupe</span>
+          <ul class="persona-misc"><li>idée, débat et réflexion sur l&#x27;architecture générale du projet</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">P1</span>
+          <span class="persona-profile">Estebane</span>
+          <ul class="persona-misc"><li>construire le wrapper LLM (src/llm.py, src/config.py) : le point d&#x27;entrée unique vers l&#x27;API Claude</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">P2</span>
+          <span class="persona-profile">Aymeric</span>
+          <ul class="persona-misc"><li>construire la mémoire des élèves, leurs profils et les agents hors-ligne (src/memory/classroom_state.py, data/personas/default.json, src/fake_agents.py)</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">P3</span>
+          <span class="persona-profile">Artus</span>
+          <ul class="persona-misc"><li>le Planneur : src/agents/planner.py</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">P4</span>
+          <span class="persona-profile">Arthur</span>
+          <ul class="persona-misc"><li>construire Generator, Reviser et Diagnostician (src/agents/generator.py, src/agents/reviser.py, src/agents/diagnostician.py) : génération, révision, correction des réponses</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">P5</span>
+          <span class="persona-profile">Mustapha</span>
+          <ul class="persona-misc"><li>construire l&#x27;élève-agent et le DriftWatcher (src/agents/student.py, src/agents/drift_watcher.py) : réponses aux exercices et contrôle de plausibilité</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">UI</span>
+          <span class="persona-profile">Arthus, Esteban</span>
+          <ul class="persona-misc"><li>interface utilisateur</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">Rapport</span>
+          <span class="persona-profile">Aymeric, Mustapha</span>
+          <ul class="persona-misc"><li>rédaction du rapport de run</li></ul>
+        </li>
+        <li class="persona">
+          <span class="persona-id">Vérification</span>
+          <span class="persona-profile">Tout le groupe</span>
+          <ul class="persona-misc"><li>relecture et vérification du rapport final</li></ul>
+        </li>
+      </ul>
+    </div>
+  </section>
 
   <section>
     <div class="sec-head">
